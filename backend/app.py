@@ -37,6 +37,9 @@ class Suggestion(db.Model):
     type = db.Column(db.String(50), nullable=False)
     status = db.Column(db.String(20), nullable=False, default='pending')
     submission_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    ip_address = db.Column(db.String(45))
+    username = db.Column(db.String(80))
+    user_request_count = db.Column(db.Integer)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -99,9 +102,17 @@ def get_items():
 @app.route('/api/suggestions', methods=['POST'])
 def create_suggestion():
     data = request.get_json()
+    ip_address = request.remote_addr
+    username = data.get('username') # This will be None for now
+
+    user_request_count = Suggestion.query.filter_by(ip_address=ip_address).count() + 1
+
     new_suggestion = Suggestion(
         item=data['item'],
-        type=data['type']
+        type=data['type'],
+        ip_address=ip_address,
+        username=username,
+        user_request_count=user_request_count
     )
     db.session.add(new_suggestion)
     db.session.commit()
@@ -115,7 +126,10 @@ def get_admin_suggestions():
         'item': s.item,
         'type': s.type,
         'status': s.status,
-        'submission_date': s.submission_date.isoformat()
+        'submission_date': s.submission_date.isoformat(),
+        'ip_address': s.ip_address,
+        'username': s.username,
+        'user_request_count': s.user_request_count
     } for s in suggestions])
 
 @app.route('/api/admin/approve/<int:suggestion_id>', methods=['POST'])
@@ -344,6 +358,11 @@ def generate_image():
 def serve_index():
     # Serve index.html from the static folder (which is the project root)
     return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/admin')
+def serve_admin():
+    # Serve index.html from the Admin directory
+    return send_from_directory(os.path.join(app.static_folder, 'Admin'), 'index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

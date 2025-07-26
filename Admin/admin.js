@@ -1,41 +1,23 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const loginSection = document.getElementById('login-section');
     const suggestionsSection = document.getElementById('suggestions-section');
     const dashboardSection = document.getElementById('dashboard-section');
-    const loginButton = document.getElementById('github-login-btn');
     const suggestionsListDiv = document.getElementById('suggestions-list');
     const themeToggleButton = document.getElementById('theme-toggle-btn');
-    // const logoImage = document.getElementById('admin-logo-image'); // Not directly used in this script's new logic
     const newSuggestionItemNameInput = document.getElementById('new-suggestion-item-name');
     const addNewSuggestionButton = document.getElementById('add-new-suggestion-btn');
 
-
-    // Simulate login
-    if (loginButton) {
-        loginButton.addEventListener('click', function() {
-            // In a real app, this would trigger GitHub OAuth flow.
-            // For now, we just "log in" and show the suggestions.
-            console.log("Simulated GitHub login initiated.");
-            if (loginSection) {
-                loginSection.classList.add('hidden');
-            }
-            if (dashboardSection) {
-                dashboardSection.classList.remove('hidden');
-            }
-            if (suggestionsSection) {
-                suggestionsSection.classList.remove('hidden');
-            }
-            loadDashboardStats();
-            loadSuggestions();
-        });
-    }
+    // Load dashboard and suggestions on page load
+    dashboardSection.classList.remove('hidden');
+    suggestionsSection.classList.remove('hidden');
+    loadDashboardStats();
+    loadSuggestions();
 
     function loadDashboardStats() {
         const statsDiv = document.getElementById('dashboard-stats');
         if (!statsDiv) return;
         statsDiv.innerHTML = '<p>Loading stats...</p>';
 
-        fetch('http://127.0.0.1:5000/api/admin/stats')
+        fetch('/api/admin/stats')
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -68,7 +50,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (!selectedTypeElement) {
-                // This case should ideally not happen if one is checked by default, but good for robustness
                 alert('Please select a type for the suggestion.');
                 return;
             }
@@ -80,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 type: selectedType
             };
 
-            fetch('http://127.0.0.1:5000/api/suggestions', {
+            fetch('/api/suggestions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -109,16 +90,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (defaultRadio) {
                 defaultRadio.checked = true;
             }
-
-            console.log("Admin added new suggestion to list:", newSuggestion);
-            alert(`Suggestion "${itemName}" of type "${selectedType}" added to the pending list.`);
         });
     }
     function loadSuggestions() {
         if (!suggestionsListDiv) return;
         suggestionsListDiv.innerHTML = '<p>Loading suggestions...</p>';
 
-        fetch('http://127.0.0.1:5000/api/admin/suggestions')
+        fetch('/api/admin/suggestions')
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -152,24 +130,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Function to add a single new suggestion to the DOM (prepends to list)
-    function addSuggestionToDOM(suggestion) {
-        if (!suggestionsListDiv) return;
-
-        // If "No pending suggestions" or error/loading message is present, remove it
-        const existingMessageP = suggestionsListDiv.querySelector('p');
-        if (existingMessageP && (
-            existingMessageP.textContent === 'No pending suggestions found.' ||
-            existingMessageP.textContent === 'Loading suggestions...' ||
-            existingMessageP.classList.contains('error')
-        )) {
-            suggestionsListDiv.innerHTML = '';
-        }
-
-        const itemDiv = createSuggestionItemElement(suggestion);
-        suggestionsListDiv.prepend(itemDiv); // Add to the top for visibility
-    }
-
     // Helper to escape HTML to prevent XSS if data isn't trusted
     function escapeHTML(str) {
         if (typeof str !== 'string') return str; // Return non-strings as is
@@ -181,10 +141,14 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderSuggestionContent(contentElement, suggestion) {
         // Ensure suggestion.type is displayed. Default to 'N/A' if not present.
         const typeDisplay = escapeHTML(suggestion.type || 'N/A');
+        const usernameDisplay = escapeHTML(suggestion.username || 'Anonymous');
         contentElement.innerHTML = `<strong>Item:</strong> ${escapeHTML(suggestion.item) || 'N/A'}<br>
                                     <strong>Type:</strong> ${typeDisplay}<br>
                                     <strong>Status:</strong> ${escapeHTML(suggestion.status) || 'N/A'}<br>
-                                    <strong>Date:</strong> ${suggestion.date ? new Date(suggestion.date).toLocaleString() : 'N/A'}`;
+                                    <strong>Date:</strong> ${suggestion.submission_date ? new Date(suggestion.submission_date).toLocaleString() : 'N/A'}<br>
+                                    <strong>IP Address:</strong> ${escapeHTML(suggestion.ip_address) || 'N/A'}<br>
+                                    <strong>Username:</strong> ${usernameDisplay}<br>
+                                    <strong>Request Count:</strong> ${suggestion.user_request_count || 'N/A'}`;
     }
 
     function createSuggestionItemElement(suggestion) {
@@ -198,38 +162,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         itemDiv.appendChild(contentP);
 
-        // Container for edit form inputs (initially hidden)
-        const editFormInputsDiv = document.createElement('div');
-        editFormInputsDiv.classList.add('edit-form-inputs', 'hidden');
-        itemDiv.appendChild(editFormInputsDiv);
-
-        // Approval type checkboxes
-        const approvalTypeDiv = document.createElement('div');
-        approvalTypeDiv.classList.add('approval-type-checkboxes');
-        approvalTypeDiv.style.marginBottom = '10px'; // Add some spacing
-
-        const types = ["Food", "Preperation", "Both"];
-        types.forEach(typeValue => {
-            const label = document.createElement('label');
-            label.style.marginRight = '10px';
-
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.name = `approval-type-${suggestion.id}`; // Unique name per suggestion item
-            checkbox.value = typeValue;
-            checkbox.id = `approve-${typeValue}-${suggestion.id}`;
-
-            // Pre-check based on suggestion.type
-            if (suggestion.type && suggestion.type.toLowerCase() === typeValue.toLowerCase()) {
-                checkbox.checked = true;
-            }
-
-            label.appendChild(checkbox);
-            label.appendChild(document.createTextNode(` Approve as ${typeValue}`));
-            approvalTypeDiv.appendChild(label);
-        });
-        itemDiv.appendChild(approvalTypeDiv); // Add checkboxes before action buttons
-
         const actionsDiv = document.createElement('div');
         actionsDiv.classList.add('suggestion-item-actions');
 
@@ -237,7 +169,7 @@ document.addEventListener('DOMContentLoaded', function() {
         approveButton.textContent = 'Approve';
         approveButton.classList.add('approve-btn');
         approveButton.addEventListener('click', () => {
-            fetch(`http://127.0.0.1:5000/api/admin/approve/${suggestion.id}`, {
+            fetch(`/api/admin/approve/${suggestion.id}`, {
                 method: 'POST',
             })
             .then(response => {
@@ -249,10 +181,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 console.log('Success:', data);
                 alert(`"${suggestion.item}" approved and removed from pending list.`);
-                itemDiv.remove();
-                if (suggestionsListDiv && suggestionsListDiv.children.length === 0) {
-                    suggestionsListDiv.innerHTML = '<p>No pending suggestions found.</p>';
-                }
+                loadSuggestions();
+                loadDashboardStats();
             })
             .catch((error) => {
                 console.error('Error:', error);
@@ -264,7 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
         rejectButton.textContent = 'Reject';
         rejectButton.classList.add('reject-btn');
         rejectButton.addEventListener('click', () => {
-            fetch(`http://127.0.0.1:5000/api/admin/reject/${suggestion.id}`, {
+            fetch(`/api/admin/reject/${suggestion.id}`, {
                 method: 'DELETE',
             })
             .then(response => {
@@ -276,10 +206,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 console.log('Success:', data);
                 alert(`"${suggestion.item}" rejected.`);
-                itemDiv.remove();
-                if (suggestionsListDiv && suggestionsListDiv.children.length === 0) {
-                    suggestionsListDiv.innerHTML = '<p>No pending suggestions found.</p>';
-                }
+                loadSuggestions();
+                loadDashboardStats();
             })
             .catch((error) => {
                 console.error('Error:', error);
@@ -287,64 +215,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
-        const editButton = document.createElement('button');
-        editButton.textContent = 'Edit';
-        editButton.classList.add('edit-btn');
-        editButton.addEventListener('click', () => toggleEditMode(itemDiv, suggestion, true));
-
         actionsDiv.appendChild(approveButton);
         actionsDiv.appendChild(rejectButton);
-        actionsDiv.appendChild(editButton);
         itemDiv.appendChild(actionsDiv);
 
         return itemDiv;
-    }
-
-    function toggleEditMode(itemDiv, suggestion, isEditing) {
-        const contentDisplay = itemDiv.querySelector('.suggestion-content-display');
-        const editFormInputsDiv = itemDiv.querySelector('.edit-form-inputs');
-        const actionsDiv = itemDiv.querySelector('.suggestion-item-actions'); // The div containing Approve/Reject/Edit
-
-        if (isEditing) {
-            contentDisplay.classList.add('hidden');
-            actionsDiv.classList.add('hidden'); // Hide Approve/Reject/Edit buttons
-
-            // Create and append edit form elements
-            editFormInputsDiv.innerHTML = `
-                <label for="edit-item-${suggestion.id}">Item Name:</label>
-                <input type="text" id="edit-item-${suggestion.id}" value="${escapeHTML(suggestion.item || '')}">
-                <label for="edit-status-${suggestion.id}">Status:</label>
-                <input type="text" id="edit-status-${suggestion.id}" value="${escapeHTML(suggestion.status || '')}">
-                <button class="save-edit-btn">Save</button>
-                <button class="cancel-edit-btn">Cancel</button>
-            `;
-            editFormInputsDiv.classList.remove('hidden');
-
-            editFormInputsDiv.querySelector('.save-edit-btn').addEventListener('click', () => {
-                const updatedItem = itemDiv.querySelector(`#edit-item-${suggestion.id}`).value.trim();
-                const updatedStatus = itemDiv.querySelector(`#edit-status-${suggestion.id}`).value.trim();
-
-                if (updatedItem) {
-                    suggestion.item = updatedItem; // Update the in-memory suggestion object
-                    suggestion.status = updatedStatus;
-                    renderSuggestionContent(contentDisplay, suggestion); // Update the display paragraph
-                    console.log(`Simulated: Saved changes for suggestion ID ${suggestion.id}`, suggestion);
-                    // alert(`Changes to "${suggestion.item}" saved (simulated).`); // Can be noisy
-                    toggleEditMode(itemDiv, suggestion, false); // Exit edit mode
-                } else {
-                    alert('Item name cannot be empty.');
-                }
-            });
-
-            editFormInputsDiv.querySelector('.cancel-edit-btn').addEventListener('click', () => {
-                toggleEditMode(itemDiv, suggestion, false); // Exit edit mode, discard changes
-            });
-        } else { // Exiting edit mode
-            contentDisplay.classList.remove('hidden');
-            actionsDiv.classList.remove('hidden'); // Show Approve/Reject/Edit buttons
-            editFormInputsDiv.classList.add('hidden');
-            editFormInputsDiv.innerHTML = ''; // Clear the edit form
-        }
     }
 
     // Theme Toggle Functionality
@@ -376,7 +251,4 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         setTheme('light'); // Default to light if no preference
     }
-
-    // Ensure login button exists before trying to add event listener
-    // (already handled by `if (loginButton)` check above)
 });
