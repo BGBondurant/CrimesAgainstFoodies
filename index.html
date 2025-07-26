@@ -15,7 +15,7 @@
       <nav class="main-nav">
         <a href="#hall-of-fame-section">Hall of Fame</a>
         <a href="#favorites-section">Favorites</a>
-        <a href="Admin/index.html" id="admin-link" class="hidden">Admin</a>
+        <a href="/admin" id="admin-link" class="hidden">Admin</a>
       </nav>
       <div class="user-auth">
         <button id="show-login-modal-btn" class="btn">Login / Sign Up</button>
@@ -118,6 +118,17 @@
   <footer id="footer">
     <p>&copy; 2023 Crimes Against Foodies. All rights reserved (mostly for laughs).</p>
   </footer>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const logo = document.querySelector('.logo');
+      logo.addEventListener('click', (e) => {
+        if (e.altKey) {
+          e.preventDefault();
+          window.location.href = '/admin';
+        }
+      });
+    });
+  </script>
 </body>
 
 </html>

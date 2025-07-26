@@ -37,6 +37,9 @@ class Suggestion(db.Model):
     type = db.Column(db.String(50), nullable=False)
     status = db.Column(db.String(20), nullable=False, default='pending')
     submission_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    ip_address = db.Column(db.String(45))
+    username = db.Column(db.String(80))
+    user_request_count = db.Column(db.Integer)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -99,9 +102,17 @@ def get_items():
 @app.route('/api/suggestions', methods=['POST'])
 def create_suggestion():
     data = request.get_json()
+    ip_address = request.remote_addr
+    username = data.get('username') # This will be None for now
+
+    user_request_count = Suggestion.query.filter_by(ip_address=ip_address).count() + 1
+
     new_suggestion = Suggestion(
         item=data['item'],
-        type=data['type']
+        type=data['type'],
+        ip_address=ip_address,
+        username=username,
+        user_request_count=user_request_count
     )
     db.session.add(new_suggestion)
     db.session.commit()
@@ -115,7 +126,10 @@ def get_admin_suggestions():
         'item': s.item,
         'type': s.type,
         'status': s.status,
-        'submission_date': s.submission_date.isoformat()
+        'submission_date': s.submission_date.isoformat(),
+        'ip_address': s.ip_address,
+        'username': s.username,
+        'user_request_count': s.user_request_count
     } for s in suggestions])
 
 @app.route('/api/admin/approve/<int:suggestion_id>', methods=['POST'])
@@ -179,9 +193,6 @@ def delete_item(item_type, item_id):
     db.session.delete(item)
     db.session.commit()
     return jsonify({'message': f'{item_type.capitalize()} item deleted successfully'})
-
-import vertexai
-from vertexai.preview.vision_models import ImageGenerationModel
 
 @app.route('/api/admin/stats', methods=['GET'])
 def get_stats():
@@ -308,42 +319,15 @@ def get_achievements():
         })
     return jsonify(achievements)
 
-@app.route('/api/generate-image', methods=['POST'])
-def generate_image():
-    data = request.get_json()
-    prompt = data.get('prompt')
-
-    if not prompt:
-        return jsonify({'error': 'Prompt is required'}), 400
-
-    try:
-        # NOTE: You'll need to set up authentication for Vertex AI
-        # This might involve setting GOOGLE_APPLICATION_CREDENTIALS environment variable
-        # https://cloud.google.com/docs/authentication/provide-credentials-adc
-        vertexai.init(project=os.environ.get("GCP_PROJECT_ID"), location=os.environ.get("GCP_PROJECT_LOCATION"))
-
-        model = ImageGenerationModel.from_pretrained("imagegeneration@006") # Using the latest stable model
-
-        response = model.generate_images(
-            prompt=prompt,
-            number_of_images=1, # Generate one image
-        )
-
-        image_bytes = response.images[0]._image_bytes
-        image_filename = "generated_image.png"
-        # Save the image to the parent directory (the frontend root)
-        output_path = os.path.join(basedir, '..', image_filename)
-        with open(output_path, "wb") as f:
-            f.write(image_bytes)
-        # Return a URL that the frontend can use. The leading slash makes it a root-relative URL.
-        return jsonify({'image_url': f'/{image_filename}'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 @app.route('/')
 def serve_index():
     # Serve index.html from the static folder (which is the project root)
     return send_from_directory(app.static_folder, 'index.html')
+
+@app.route('/admin')
+def serve_admin():
+    # Serve index.html from the Admin directory
+    return send_from_directory(os.path.join(app.static_folder, 'Admin'), 'index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
