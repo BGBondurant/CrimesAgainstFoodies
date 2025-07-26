@@ -194,9 +194,6 @@ def delete_item(item_type, item_id):
     db.session.commit()
     return jsonify({'message': f'{item_type.capitalize()} item deleted successfully'})
 
-import vertexai
-from vertexai.preview.vision_models import ImageGenerationModel
-
 @app.route('/api/admin/stats', methods=['GET'])
 def get_stats():
     pending_suggestions = Suggestion.query.filter_by(status='pending').count()
@@ -321,38 +318,6 @@ def get_achievements():
             'icon': achievement.icon
         })
     return jsonify(achievements)
-
-@app.route('/api/generate-image', methods=['POST'])
-def generate_image():
-    data = request.get_json()
-    prompt = data.get('prompt')
-
-    if not prompt:
-        return jsonify({'error': 'Prompt is required'}), 400
-
-    try:
-        # NOTE: You'll need to set up authentication for Vertex AI
-        # This might involve setting GOOGLE_APPLICATION_CREDENTIALS environment variable
-        # https://cloud.google.com/docs/authentication/provide-credentials-adc
-        vertexai.init(project=os.environ.get("GCP_PROJECT_ID"), location=os.environ.get("GCP_PROJECT_LOCATION"))
-
-        model = ImageGenerationModel.from_pretrained("imagegeneration@006") # Using the latest stable model
-
-        response = model.generate_images(
-            prompt=prompt,
-            number_of_images=1, # Generate one image
-        )
-
-        image_bytes = response.images[0]._image_bytes
-        image_filename = "generated_image.png"
-        # Save the image to the parent directory (the frontend root)
-        output_path = os.path.join(basedir, '..', image_filename)
-        with open(output_path, "wb") as f:
-            f.write(image_bytes)
-        # Return a URL that the frontend can use. The leading slash makes it a root-relative URL.
-        return jsonify({'image_url': f'/{image_filename}'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 @app.route('/')
 def serve_index():
