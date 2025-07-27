@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Content{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Manage Approved Submissions</h1>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Food Name</th>
+                <th>Preparation Idea</th>
+                <th>Submitted By</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for submission in submissions %}
+            <tr>
+                <td>{{ submission['food_name'] }}</td>
+                <td>{{ submission['preparation_idea'] }}</td>
+                <td>{{ submission['submitted_by'] }}</td>
+                <td>
+                    <a href="{{ url_for('edit_submission', submission_id=submission['id']) }}" class="btn btn-primary btn-sm">Edit</a>
+                    <a href="{{ url_for('delete_submission', submission_id=submission['id']) }}" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this submission?')">Delete</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4">No approved submissions to manage.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+{% endblock %}

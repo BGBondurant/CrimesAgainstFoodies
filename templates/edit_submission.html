@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Submission{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Edit Submission</h1>
+    <form method="POST">
+        <div class="form-group">
+            <label for="food_name">Food Name</label>
+            <input type="text" class="form-control" id="food_name" name="food_name" value="{{ submission['food_name'] }}" required>
+        </div>
+        <div class="form-group">
+            <label for="preparation_idea">Preparation Idea</label>
+            <textarea class="form-control" id="preparation_idea" name="preparation_idea" rows="3" required>{{ submission['preparation_idea'] }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="{{ url_for('manage_content') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

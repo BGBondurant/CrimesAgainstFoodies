@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Submit an Idea{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Submit a Food and Preparation Idea</h1>
+    <form method="POST">
+        <div class="form-group">
+            <label for="food_name">Food Name</label>
+            <input type="text" class="form-control" id="food_name" name="food_name" required>
+        </div>
+        <div class="form-group">
+            <label for="preparation_idea">Preparation Idea</label>
+            <textarea class="form-control" id="preparation_idea" name="preparation_idea" rows="3" required></textarea>
+        </div>
+        <div class="form-group">
+            <label for="submitted_by">Your Name</label>
+            <input type="text" class="form-control" id="submitted_by" name="submitted_by" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+</div>
+{% endblock %}

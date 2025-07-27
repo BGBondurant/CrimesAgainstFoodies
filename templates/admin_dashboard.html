@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Admin Dashboard</h1>
+    <h2 class="my-4">Pending Submissions</h2>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Food Name</th>
+                <th>Preparation Idea</th>
+                <th>Submitted By</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for submission in submissions %}
+            <tr>
+                <td>{{ submission['food_name'] }}</td>
+                <td>{{ submission['preparation_idea'] }}</td>
+                <td>{{ submission['submitted_by'] }}</td>
+                <td>
+                    <a href="{{ url_for('approve_submission', submission_id=submission['id']) }}" class="btn btn-success btn-sm">Approve</a>
+                    <a href="{{ url_for('decline_submission', submission_id=submission['id']) }}" class="btn btn-warning btn-sm">Decline</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4">No pending submissions.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{{ url_for('manage_content') }}" class="btn btn-info">Manage Approved Content</a>
+    <a href="{{ url_for('logout') }}" class="btn btn-secondary">Logout</a>
+</div>
+{% endblock %}

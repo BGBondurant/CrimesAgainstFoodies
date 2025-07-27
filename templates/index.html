@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Food and Prep Ideas{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Approved Food and Preparation Ideas</h1>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-info">
+          {% for message in messages %}
+            {{ message }}
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    <a href="{{ url_for('submit') }}" class="btn btn-primary mb-4">Submit Your Own Idea</a>
+    <div class="row">
+        {% for submission in submissions %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h4 class="card-title">{{ submission['food_name'] }}</h4>
+                    <p class="card-text">{{ submission['preparation_idea'] }}</p>
+                </div>
+                <div class="card-footer">
+                    <small class="text-muted">Submitted by: {{ submission['submitted_by'] }}</small>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col">
+            <p>No approved submissions yet. Be the first to submit one!</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
