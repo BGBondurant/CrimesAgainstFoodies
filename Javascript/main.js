@@ -1,22 +1,19 @@
-let Json; // Declare Json in a broader scope
+let preparations = [];
+let foods = [];
 let gameInitialized = false; // To track if the game elements have been added
 
 document.addEventListener('DOMContentLoaded', function() {
-    fetch("Json/PF.json") // Adjusted path assuming Json folder is at the same level as index.html
-        .then((response) => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then((data) => {
-            Json = data;
-            populateListSection(); // Populate the list section with JSON data
-        })
-        .catch((err) => {
-            console.error("Failed to load JSON data:", err);
-            alert("Something went wrong while loading data: " + err.message);
-        });
+    Promise.all([
+        fetch('/api/preparations').then(response => response.json()),
+        fetch('/api/foods').then(response => response.json())
+    ]).then(([preps, foodItems]) => {
+        preparations = preps.map(p => p.name);
+        foods = foodItems.map(f => f.name);
+        populateListSection(); // Populate the list section with data from the API
+    }).catch(err => {
+        console.error("Failed to load data from API:", err);
+        alert("Something went wrong while loading data: " + err.message);
+    });
 
     const btn = document.getElementById('btn');
     const sound = document.getElementById('sound');
@@ -53,15 +50,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (searchInput) {
         searchInput.addEventListener('input', function(event) {
             const searchTerm = event.target.value.toLowerCase().trim();
-            let filteredPreparations = Json.Preperation; // Default to all if search is empty
-            let filteredFoods = Json.Food;         // Default to all if search is empty
+            let filteredPreparations = preparations; // Default to all if search is empty
+            let filteredFoods = foods;         // Default to all if search is empty
 
             if (searchTerm) {
-                if (Json && Json.Preperation) {
-                    filteredPreparations = Json.Preperation.filter(item => item.toLowerCase().includes(searchTerm));
+                if (preparations) {
+                    filteredPreparations = preparations.filter(item => item.toLowerCase().includes(searchTerm));
                 }
-                if (Json && Json.Food) {
-                    filteredFoods = Json.Food.filter(item => item.toLowerCase().includes(searchTerm));
+                if (foods) {
+                    filteredFoods = foods.filter(item => item.toLowerCase().includes(searchTerm));
                 }
             }
             populateListSection(filteredPreparations, filteredFoods);
@@ -75,16 +72,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const newItem = prompt("Enter a new food item or preparation method to suggest:");
             if (newItem && newItem.trim() !== "") {
                 const trimmedItem = newItem.trim();
-                console.log("User suggested:", trimmedItem);
-                // In a real application, you would send this to a backend server
-                // e.g., using fetch API to POST the data.
-                // The server would then handle writing to temp.json after validation/approval.
-                // For now, we simulate success with an alert.
-                /*
-                fetch('/api/suggest-item', { // This is a placeholder for your backend endpoint
+                fetch('/api/suggestions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ item: trimmedItem })
+                    body: JSON.stringify({ item: trimmedItem, status: 'pending', date: new Date().toISOString() })
                 })
                 .then(response => response.json())
                 .then(data => alert(data.message || `Suggestion "${trimmedItem}" submitted!`))
@@ -92,8 +83,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error("Error submitting suggestion:", error);
                     alert("Could not submit suggestion at this time.");
                 });
-                */
-                alert(`Thank you! Your suggestion "${trimmedItem}" has been noted and will be reviewed.`);
             } else if (newItem !== null) { // User clicked OK but entered nothing or only spaces
                 alert("Suggestion cannot be empty. Please enter a valid item.");
             }
@@ -118,11 +107,11 @@ function renderList(listElement, items, noMatchMessage = "No items match your se
     }
 }
 
-function populateListSection(preparationsToShow = Json.Preperation, foodsToShow = Json.Food) {
+function populateListSection(preparationsToShow = preparations, foodsToShow = foods) {
     const preparationsListElement = document.getElementById('preparations-list');
     const foodsListElement = document.getElementById('foods-list');
 
-    const initialLoad = !Json || (!Json.Preperation && !Json.Food);
+    const initialLoad = preparations.length === 0 && foods.length === 0;
     const noMatchMsg = initialLoad ? "Loading items..." : "No items match your search.";
 
     renderList(preparationsListElement, preparationsToShow, noMatchMsg);
@@ -131,16 +120,16 @@ function populateListSection(preparationsToShow = Json.Preperation, foodsToShow 
 
 
 function getPreperation() {
-    // Ensure Json and Json.Preperation are loaded
-    if (!Json || !Json.Preperation || Json.Preperation.length === 0) return "Loading...";
-    const varPreperation = Json.Preperation[Math.floor(Math.random() * Json.Preperation.length)];
+    // Ensure preparations are loaded
+    if (!preparations || preparations.length === 0) return "Loading...";
+    const varPreperation = preparations[Math.floor(Math.random() * preparations.length)];
     return varPreperation;
 }
 
 function getfood() {
-    // Ensure Json and Json.Food are loaded
-    if (!Json || !Json.Food || Json.Food.length === 0) return "Loading...";
-    const varfood = Json.Food[Math.floor(Math.random() * Json.Food.length)];
+    // Ensure foods are loaded
+    if (!foods || foods.length === 0) return "Loading...";
+    const varfood = foods[Math.floor(Math.random() * foods.length)];
     return varfood;
 }
 
