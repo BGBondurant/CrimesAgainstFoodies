@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         suggestionsListDiv.innerHTML = '<p>Loading suggestions...</p>'; // Show loading message
 
-        fetch('../Json/temp.json') // Corrected path: temp.json is in Json folder at project root
+        fetch('/api/suggestions')
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
@@ -137,30 +137,44 @@ document.addEventListener('DOMContentLoaded', function() {
         approveButton.textContent = 'Approve';
         approveButton.classList.add('approve-btn');
         approveButton.addEventListener('click', () => {
-            console.log(`Approved: ${suggestion.item} (ID: ${suggestion.id})`);
-            alert(`"${suggestion.item}" approved (simulated).`);
-            itemDiv.remove(); // Remove from view
-            // In a real app: API call to backend to move item from temp.json to PF.json
+            fetch('/api/suggestions/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: suggestion.id, item: suggestion.item })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                itemDiv.remove();
+            })
+            .catch(error => {
+                console.error('Error approving suggestion:', error);
+                alert('Could not approve suggestion.');
+            });
         });
 
         const rejectButton = document.createElement('button');
         rejectButton.textContent = 'Reject';
         rejectButton.classList.add('reject-btn');
         rejectButton.addEventListener('click', () => {
-            console.log(`Rejected: ${suggestion.item} (ID: ${suggestion.id})`);
-            alert(`"${suggestion.item}" rejected (simulated).`);
-            itemDiv.remove(); // Remove from view
-            // In a real app: API call to backend to remove item from temp.json
+            fetch('/api/suggestions/reject', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: suggestion.id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                itemDiv.remove();
+            })
+            .catch(error => {
+                console.error('Error rejecting suggestion:', error);
+                alert('Could not reject suggestion.');
+            });
         });
-
-        const editButton = document.createElement('button');
-        editButton.textContent = 'Edit';
-        editButton.classList.add('edit-btn');
-        editButton.addEventListener('click', () => toggleEditMode(itemDiv, suggestion, true));
 
         actionsDiv.appendChild(approveButton);
         actionsDiv.appendChild(rejectButton);
-        actionsDiv.appendChild(editButton);
         itemDiv.appendChild(actionsDiv);
 
         return itemDiv;
