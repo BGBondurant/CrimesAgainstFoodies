@@ -35,7 +35,7 @@ def populate_db():
     c = conn.cursor()
 
     # Populate preparations and foods from PF.json
-    with open('Json/PF.json', 'r') as f:
+    with open('PF.json', 'r') as f:
         data = json.load(f)
         for preparation in data['Preperation']:
             c.execute("INSERT OR IGNORE INTO preparations (name) VALUES (?)", (preparation,))
@@ -43,7 +43,7 @@ def populate_db():
             c.execute("INSERT OR IGNORE INTO foods (name) VALUES (?)", (food,))
 
     # Populate suggestions from temp.json
-    with open('Json/temp.json', 'r') as f:
+    with open('temp.json', 'r') as f:
         suggestions = json.load(f)
         for suggestion in suggestions:
             c.execute("INSERT OR IGNORE INTO suggestions (item, status, date) VALUES (?, ?, ?)",
