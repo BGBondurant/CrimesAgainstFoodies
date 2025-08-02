@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const suggestionsSection = document.getElementById('suggestions-section');
     const loginButton = document.getElementById('github-login-btn');
     const suggestionsListDiv = document.getElementById('suggestions-list');
-    const themeToggleButton = document.getElementById('theme-toggle-btn');
     // const logoImage = document.getElementById('admin-logo-image'); // Not directly used in this script's new logic
     const newSuggestionItemNameInput = document.getElementById('new-suggestion-item-name');
     const addNewSuggestionButton = document.getElementById('add-new-suggestion-btn');
@@ -110,7 +109,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderSuggestionContent(contentElement, suggestion) {
-        contentElement.innerHTML = `<strong>Item:</strong> ${escapeHTML(suggestion.item) || 'N/A'}<br>
+        // Add a span with a unique ID for the item text to make it targetable for editing
+        const itemTextId = `item-text-${suggestion.id}`;
+        contentElement.innerHTML = `<strong>Item:</strong> <span id="${itemTextId}" class="suggestion-item-text">${escapeHTML(suggestion.item) || 'N/A'}</span><br>
                                     <strong>Status:</strong> ${escapeHTML(suggestion.status) || 'N/A'}<br>
                                     <strong>Date:</strong> ${suggestion.date ? new Date(suggestion.date).toLocaleString() : 'N/A'}`;
     }
@@ -118,21 +119,17 @@ document.addEventListener('DOMContentLoaded', function() {
     function createSuggestionItemElement(suggestion) {
         const itemDiv = document.createElement('div');
         itemDiv.classList.add('suggestion-item');
-        itemDiv.setAttribute('data-suggestion-id', suggestion.id); // Store ID for reference
+        itemDiv.setAttribute('data-suggestion-id', suggestion.id);
 
         const contentP = document.createElement('p');
         contentP.classList.add('suggestion-content-display');
         renderSuggestionContent(contentP, suggestion);
         itemDiv.appendChild(contentP);
 
-        // Container for edit form inputs (initially hidden)
-        const editFormInputsDiv = document.createElement('div');
-        editFormInputsDiv.classList.add('edit-form-inputs', 'hidden');
-        itemDiv.appendChild(editFormInputsDiv);
-
         const actionsDiv = document.createElement('div');
         actionsDiv.classList.add('suggestion-item-actions');
 
+        // Normal state buttons
         const approveButton = document.createElement('button');
         approveButton.textContent = 'Approve';
         approveButton.classList.add('approve-btn');
@@ -173,88 +170,113 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
 
+        const editButton = document.createElement('button');
+        editButton.textContent = 'Edit';
+        editButton.classList.add('edit-btn');
+        editButton.addEventListener('click', () => {
+            setEditMode(itemDiv, suggestion, true);
+        });
+
+        // Edit state buttons (initially hidden)
+        const saveButton = document.createElement('button');
+        saveButton.textContent = 'Save';
+        saveButton.classList.add('save-edit-btn', 'hidden');
+
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = 'Cancel';
+        cancelButton.classList.add('cancel-edit-btn', 'hidden');
+
         actionsDiv.appendChild(approveButton);
+        actionsDiv.appendChild(editButton);
         actionsDiv.appendChild(rejectButton);
+        actionsDiv.appendChild(saveButton);
+        actionsDiv.appendChild(cancelButton);
         itemDiv.appendChild(actionsDiv);
 
         return itemDiv;
     }
 
-    function toggleEditMode(itemDiv, suggestion, isEditing) {
-        const contentDisplay = itemDiv.querySelector('.suggestion-content-display');
-        const editFormInputsDiv = itemDiv.querySelector('.edit-form-inputs');
-        const actionsDiv = itemDiv.querySelector('.suggestion-item-actions'); // The div containing Approve/Reject/Edit
+    function setEditMode(itemDiv, suggestion, isEditing) {
+        const itemTextElement = itemDiv.querySelector(`#item-text-${suggestion.id}`);
+
+        // Get all buttons in the current item's action div
+        const approveButton = itemDiv.querySelector('.approve-btn');
+        const rejectButton = itemDiv.querySelector('.reject-btn');
+        const editButton = itemDiv.querySelector('.edit-btn');
+        const saveButton = itemDiv.querySelector('.save-edit-btn');
+        const cancelButton = itemDiv.querySelector('.cancel-edit-btn');
 
         if (isEditing) {
-            contentDisplay.classList.add('hidden');
-            actionsDiv.classList.add('hidden'); // Hide Approve/Reject/Edit buttons
+            itemTextElement.setAttribute('contenteditable', 'true');
+            itemTextElement.classList.add('editing'); // Add class for styling
+            itemTextElement.focus();
 
-            // Create and append edit form elements
-            editFormInputsDiv.innerHTML = `
-                <label for="edit-item-${suggestion.id}">Item Name:</label>
-                <input type="text" id="edit-item-${suggestion.id}" value="${escapeHTML(suggestion.item || '')}">
-                <label for="edit-status-${suggestion.id}">Status:</label>
-                <input type="text" id="edit-status-${suggestion.id}" value="${escapeHTML(suggestion.status || '')}">
-                <button class="save-edit-btn">Save</button>
-                <button class="cancel-edit-btn">Cancel</button>
-            `;
-            editFormInputsDiv.classList.remove('hidden');
+            // Hide normal state buttons, show edit state buttons
+            approveButton.classList.add('hidden');
+            rejectButton.classList.add('hidden');
+            editButton.classList.add('hidden');
+            saveButton.classList.remove('hidden');
+            cancelButton.classList.remove('hidden');
 
-            editFormInputsDiv.querySelector('.save-edit-btn').addEventListener('click', () => {
-                const updatedItem = itemDiv.querySelector(`#edit-item-${suggestion.id}`).value.trim();
-                const updatedStatus = itemDiv.querySelector(`#edit-status-${suggestion.id}`).value.trim();
-
-                if (updatedItem) {
-                    suggestion.item = updatedItem; // Update the in-memory suggestion object
-                    suggestion.status = updatedStatus;
-                    renderSuggestionContent(contentDisplay, suggestion); // Update the display paragraph
-                    console.log(`Simulated: Saved changes for suggestion ID ${suggestion.id}`, suggestion);
-                    // alert(`Changes to "${suggestion.item}" saved (simulated).`); // Can be noisy
-                    toggleEditMode(itemDiv, suggestion, false); // Exit edit mode
-                } else {
-                    alert('Item name cannot be empty.');
+            saveButton.onclick = () => {
+                const updatedItemText = itemTextElement.innerText.trim();
+                if (!updatedItemText) {
+                    alert('Suggestion item cannot be empty.');
+                    itemTextElement.innerText = suggestion.item; // Revert to original
+                    return;
                 }
-            });
 
-            editFormInputsDiv.querySelector('.cancel-edit-btn').addEventListener('click', () => {
-                toggleEditMode(itemDiv, suggestion, false); // Exit edit mode, discard changes
-            });
+                // optimistic update in the UI
+                const originalItemText = suggestion.item;
+                suggestion.item = updatedItemText;
+
+                const updatedData = {
+                    id: suggestion.id,
+                    item: updatedItemText,
+                    status: suggestion.status // Status is not editable in this UI
+                };
+
+                fetch('/api/suggestions/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        // If backend fails, revert the optimistic update
+                        suggestion.item = originalItemText;
+                        itemTextElement.innerText = originalItemText;
+                        return response.json().then(err => { throw new Error(err.error || 'Server error') });
+                    }
+                    return response.json();
+                })
+                .then(() => {
+                    alert('Suggestion updated successfully!');
+                })
+                .catch(error => {
+                    console.error('Error updating suggestion:', error);
+                    alert(`Could not update suggestion: ${error.message}`);
+                });
+
+                setEditMode(itemDiv, suggestion, false);
+            };
+
+            cancelButton.onclick = () => {
+                itemTextElement.innerText = suggestion.item; // Revert to original text
+                setEditMode(itemDiv, suggestion, false);
+            };
+
         } else { // Exiting edit mode
-            contentDisplay.classList.remove('hidden');
-            actionsDiv.classList.remove('hidden'); // Show Approve/Reject/Edit buttons
-            editFormInputsDiv.classList.add('hidden');
-            editFormInputsDiv.innerHTML = ''; // Clear the edit form
+            itemTextElement.setAttribute('contenteditable', 'false');
+            itemTextElement.classList.remove('editing');
+
+            // Show normal state buttons, hide edit state buttons
+            approveButton.classList.remove('hidden');
+            rejectButton.classList.remove('hidden');
+            editButton.classList.remove('hidden');
+            saveButton.classList.add('hidden');
+            cancelButton.classList.add('hidden');
         }
-    }
-
-    // Theme Toggle Functionality
-    function setTheme(theme) {
-        document.body.setAttribute('data-theme', theme);
-        localStorage.setItem('adminTheme', theme);
-        if (themeToggleButton) {
-            themeToggleButton.textContent = theme === 'dark' ? '☀️' : '🌙';
-        }
-    }
-
-    if (themeToggleButton) {
-        themeToggleButton.addEventListener('click', () => {
-            const currentTheme = document.body.getAttribute('data-theme') || 
-                                 (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            setTheme(newTheme);
-        });
-    }
-
-    // Apply saved theme or system preference on load
-    const savedTheme = localStorage.getItem('adminTheme');
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-    if (savedTheme) {
-        setTheme(savedTheme);
-    } else if (systemPrefersDark) {
-        setTheme('dark');
-    } else {
-        setTheme('light'); // Default to light if no preference
     }
 
     // Ensure login button exists before trying to add event listener
