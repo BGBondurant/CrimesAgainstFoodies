@@ -77,8 +77,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ item: trimmedItem, status: 'pending', date: new Date().toISOString() })
                 })
-                .then(response => response.json())
-                .then(data => alert(data.message || `Suggestion "${trimmedItem}" submitted!`))
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to submit suggestion.');
+                    return response.json();
+                })
+                .then(data => alert(`Suggestion "${data.item}" submitted successfully!`))
                 .catch(error => {
                     console.error("Error submitting suggestion:", error);
                     alert("Could not submit suggestion at this time.");

@@ -50,34 +50,50 @@ def add_suggestion():
 
     conn = get_db_connection()
     try:
-        conn.execute('INSERT INTO suggestions (item, status, date) VALUES (?, ?, ?)',
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO suggestions (item, status, date) VALUES (?, ?, ?)',
                      (item, status, date))
+        new_id = cursor.lastrowid
         conn.commit()
     except sqlite3.Error as e:
         conn.close()
         return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
-    conn.close()
-    return jsonify({'message': f'Suggestion "{item}" received.'}), 201
+    new_suggestion = {
+        'id': new_id,
+        'item': item,
+        'status': status,
+        'date': date
+    }
+    return jsonify(new_suggestion), 201
 
 @app.route('/api/suggestions/approve', methods=['POST'])
 def approve_suggestion():
     data = request.get_json()
     item_name = data.get('item')
     suggestion_id = data.get('id')
+    item_type = data.get('type')  # 'foods' or 'preparations'
 
-    if not item_name or not suggestion_id:
-        return jsonify({'error': 'Missing item name or suggestion id'}), 400
+    if not all([item_name, suggestion_id, item_type]):
+        return jsonify({'error': 'Missing data: item, id, and type are required.'}), 400
+
+    if item_type not in ['foods', 'preparations']:
+        return jsonify({'error': 'Invalid item type specified.'}), 400
 
     conn = get_db_connection()
-    # Check if the item is a preparation or a food and add it to the correct table
-    # This is a simplified logic. A more robust solution would be to have a way to distinguish them.
-    # For now, we'll just add to foods as a default.
-    conn.execute('INSERT OR IGNORE INTO foods (name) VALUES (?)', (item_name,))
-    conn.execute('DELETE FROM suggestions WHERE id = ?', (suggestion_id,))
-    conn.commit()
-    conn.close()
-    return jsonify({'message': f'Suggestion "{item_name}" approved and added to foods.'})
+    try:
+        conn.execute(f'INSERT OR IGNORE INTO {item_type} (name) VALUES (?)', (item_name,))
+        conn.execute('DELETE FROM suggestions WHERE id = ?', (suggestion_id,))
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.rollback()
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
+
+    return jsonify({'message': f'Suggestion "{item_name}" approved and added to {item_type}.'})
 
 @app.route('/api/suggestions/reject', methods=['POST'])
 def reject_suggestion():
