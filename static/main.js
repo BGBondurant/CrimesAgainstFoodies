@@ -67,15 +67,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Suggest new item button
     const suggestItemButton = document.getElementById('suggest-item-btn');
-    if (suggestItemButton) {
+    const suggestionTypeSelect = document.getElementById('suggestion-type-select');
+    if (suggestItemButton && suggestionTypeSelect) {
         suggestItemButton.addEventListener('click', function() {
             const newItem = prompt("Enter a new food item or preparation method to suggest:");
             if (newItem && newItem.trim() !== "") {
                 const trimmedItem = newItem.trim();
+                const itemType = suggestionTypeSelect.value;
                 fetch('/api/suggestions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ item: trimmedItem, status: 'pending', date: new Date().toISOString() })
+                    body: JSON.stringify({ item: trimmedItem, status: 'pending', date: new Date().toISOString(), type: itemType })
                 })
                 .then(response => {
                     if (!response.ok) throw new Error('Failed to submit suggestion.');

@@ -44,15 +44,16 @@ def add_suggestion():
     item = data.get('item')
     status = data.get('status')
     date = data.get('date')
+    item_type = data.get('type', 'food')  # Default to 'food'
 
-    if not item or not status or not date:
+    if not all([item, status, date, item_type]):
         return jsonify({'error': 'Missing data'}), 400
 
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO suggestions (item, status, date) VALUES (?, ?, ?)',
-                     (item, status, date))
+        cursor.execute('INSERT INTO suggestions (item, status, date, type) VALUES (?, ?, ?, ?)',
+                     (item, status, date, item_type))
         new_id = cursor.lastrowid
         conn.commit()
     except sqlite3.Error as e:
@@ -65,9 +66,37 @@ def add_suggestion():
         'id': new_id,
         'item': item,
         'status': status,
-        'date': date
+        'date': date,
+        'type': item_type
     }
     return jsonify(new_suggestion), 201
+
+@app.route('/api/suggestions/check_duplicates', methods=['POST'])
+def check_duplicates():
+    data = request.get_json()
+    suggestion_text = data.get('text', '')
+    words = suggestion_text.lower().split()
+
+    if not words:
+        return jsonify({'duplicates': []})
+
+    conn = get_db_connection()
+    duplicates = []
+
+    # Using a set to avoid redundant checks for the same word
+    for word in set(words):
+        # Check in foods
+        food_match = conn.execute('SELECT name FROM foods WHERE LOWER(name) = ?', (word,)).fetchone()
+        if food_match:
+            duplicates.append({'word': word, 'list': 'foods'})
+
+        # Check in preparations
+        prep_match = conn.execute('SELECT name FROM preparations WHERE LOWER(name) = ?', (word,)).fetchone()
+        if prep_match:
+            duplicates.append({'word': word, 'list': 'preparations'})
+
+    conn.close()
+    return jsonify({'duplicates': duplicates})
 
 @app.route('/api/suggestions/approve', methods=['POST'])
 def approve_suggestion():
