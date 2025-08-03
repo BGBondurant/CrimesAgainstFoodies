@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginButton = document.getElementById('github-login-btn');
     const suggestionsListDiv = document.getElementById('suggestions-list');
     const newSuggestionItemNameInput = document.getElementById('new-suggestion-item-name');
+    const newSuggestionTypeSelect = document.getElementById('new-suggestion-type-select');
     const addNewSuggestionButton = document.getElementById('add-new-suggestion-btn');
 
     if (loginButton) {
@@ -15,14 +16,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    if (addNewSuggestionButton && newSuggestionItemNameInput) {
+    if (addNewSuggestionButton && newSuggestionItemNameInput && newSuggestionTypeSelect) {
         addNewSuggestionButton.addEventListener('click', function() {
             const itemName = newSuggestionItemNameInput.value.trim();
+            const itemType = newSuggestionTypeSelect.value;
             if (itemName) {
                 const newSuggestionData = {
                     item: itemName,
                     status: 'pending',
-                    date: new Date().toISOString()
+                    date: new Date().toISOString(),
+                    type: itemType
                 };
                 fetch('/api/suggestions', {
                     method: 'POST',
@@ -92,6 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const itemTextId = `item-text-${suggestion.id}`;
         contentElement.innerHTML = `<strong>Item:</strong> <span id="${itemTextId}" class="suggestion-item-text">${escapeHTML(suggestion.item)}</span><br>
                                     <strong>Status:</strong> ${escapeHTML(suggestion.status)}<br>
+                                    <strong>Type:</strong> ${escapeHTML(suggestion.type)}<br>
                                     <strong>Date:</strong> ${new Date(suggestion.date).toLocaleString()}`;
     }
 
@@ -99,6 +103,27 @@ document.addEventListener('DOMContentLoaded', function() {
         const itemDiv = document.createElement('div');
         itemDiv.classList.add('suggestion-item');
         itemDiv.setAttribute('data-suggestion-id', suggestion.id);
+
+        const duplicateIndicator = document.createElement('div');
+        duplicateIndicator.classList.add('duplicate-indicator');
+        itemDiv.appendChild(duplicateIndicator);
+
+        fetch('/api/suggestions/check_duplicates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: suggestion.item })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.duplicates.length > 0) {
+                duplicateIndicator.textContent = '❌';
+                const tooltipText = data.duplicates.map(d => `${d.word} (in ${d.list})`).join(', ');
+                duplicateIndicator.title = `Duplicate words found: ${tooltipText}`;
+            } else {
+                duplicateIndicator.textContent = '✔️';
+                duplicateIndicator.title = 'No duplicate words found.';
+            }
+        });
 
         const contentP = document.createElement('p');
         contentP.classList.add('suggestion-content-display');

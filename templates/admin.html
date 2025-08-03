@@ -32,7 +32,11 @@
             <div id="add-suggestion-form-container" class="suggestion-form-container">
                 <h3>Add New Suggestion to Temporary List</h3>
                 <input type="text" id="new-suggestion-item-name" placeholder="Enter food item name">
-                <!-- You could add more fields here, e.g., for an initial status -->
+                <select id="new-suggestion-type-select">
+                  <option value="food">Food</option>
+                  <option value="preparation">Preparation</option>
+                  <option value="both">Both</option>
+                </select>
                 <button id="add-new-suggestion-btn">Add Suggestion to List</button>
             </div>
 
