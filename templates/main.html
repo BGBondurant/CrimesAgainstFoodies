@@ -3,23 +3,21 @@
 <head>
   <meta charset="utf-8" />
   <title>Crimes Against Foodies</title>
-  <link rel="stylesheet" href="Css/index.css" />
-  <link rel="stylesheet" href="Css/Header.css" />
-  <script src="Javascript/main.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='Header.css') }}" />
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
 </head>
 
 <body id="head">
   <header id="header-bar">
-    <a href="index.html" title="Go to Homepage" class="logo-link"> <!-- Link to home, adjust if needed -->
-      <img id="logo-image" src="Crimes.png" alt="Crimes Against Foodies Logo"> <!-- Adjusted path -->
+    <a href="/" title="Go to Homepage" class="logo-link">
+      <img id="main-logo-image" src="{{ url_for('static', filename='Crimes.png') }}" alt="Crimes Against Foodies Logo">
     </a>
     <h1 id="header-title">Crimes Against Foodies</h1>
-    <!-- Navigation links like "About" and "List" are removed from here -->
-    <!-- The .nav-links class from Header.css can be used if you add other links later -->
   </header>
 
   <audio id="sound" preload="auto">
-    <source src="ButtonClick.mp3" type="audio/mpeg"> <!-- Adjusted path -->
+    <source src="{{ url_for('static', filename='ButtonClick.mp3') }}" type="audio/mpeg">
   </audio>
 
   <main class="game-content">
@@ -31,8 +29,6 @@
       <button id="btn">click here to find your next favorite food</button>
     </div>
   </main>
-
-  <!-- New sections for About and List content -->
   <section id="about-section" class="content-section">
     <h2>About Crimes Against Foodies</h2>
     <p>Welcome to Crimes Against Foodies! This is a fun project that helps you discover... well, interesting food combinations. Some might be delicious, some might be culinary crimes. You decide!</p>

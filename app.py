@@ -11,11 +11,11 @@ def get_db_connection():
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    return render_template('main.html')
 
 @app.route('/admin')
 def admin():
-    return render_template('Admin/index.html')
+    return render_template('admin.html')
 
 @app.route('/api/preparations', methods=['GET'])
 def get_preparations():
