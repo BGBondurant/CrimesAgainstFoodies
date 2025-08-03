@@ -38,6 +38,28 @@ def get_suggestions():
     conn.close()
     return jsonify([dict(row) for row in suggestions])
 
+@app.route('/api/suggestions', methods=['POST'])
+def add_suggestion():
+    data = request.get_json()
+    item = data.get('item')
+    status = data.get('status')
+    date = data.get('date')
+
+    if not item or not status or not date:
+        return jsonify({'error': 'Missing data'}), 400
+
+    conn = get_db_connection()
+    try:
+        conn.execute('INSERT INTO suggestions (item, status, date) VALUES (?, ?, ?)',
+                     (item, status, date))
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.close()
+        return jsonify({'error': str(e)}), 500
+
+    conn.close()
+    return jsonify({'message': f'Suggestion "{item}" received.'}), 201
+
 @app.route('/api/suggestions/approve', methods=['POST'])
 def approve_suggestion():
     data = request.get_json()
@@ -70,6 +92,34 @@ def reject_suggestion():
     conn.commit()
     conn.close()
     return jsonify({'message': 'Suggestion rejected.'})
+
+@app.route('/api/suggestions/update', methods=['POST'])
+def update_suggestion():
+    data = request.get_json()
+    suggestion_id = data.get('id')
+    item = data.get('item')
+    status = data.get('status')
+
+    if not all([suggestion_id, item, status]):
+        return jsonify({'error': 'Missing data for update'}), 400
+
+    conn = get_db_connection()
+    try:
+        # Using a tuple for the parameters is crucial
+        conn.execute('UPDATE suggestions SET item = ?, status = ? WHERE id = ?',
+                     (item, status, suggestion_id))
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.close()
+        # It's good practice to log the error as well
+        print(f"Database error: {e}")
+        return jsonify({'error': f'Database error: {e}'}), 500
+    finally:
+        # Ensure the connection is closed even if commit fails
+        if conn:
+            conn.close()
+
+    return jsonify({'message': 'Suggestion updated successfully.'})
 
 if __name__ == '__main__':
     app.run(debug=True)
