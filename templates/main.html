@@ -6,6 +6,26 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='Header.css') }}" />
   <script src="{{ url_for('static', filename='main.js') }}"></script>
+  <style>
+    .button-link {
+        display: inline-block;
+        padding: 10px 20px;
+        margin-top: 1rem;
+        font-size: 1rem;
+        font-weight: bold;
+        color: #fff;
+        background-color: #1877f2; /* A nice blue */
+        border: none;
+        border-radius: 6px;
+        text-decoration: none;
+        text-align: center;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    .button-link:hover {
+        background-color: #166fe5; /* A slightly darker blue */
+    }
+  </style>
 </head>
 
 <body id="head">
@@ -31,18 +51,16 @@
   </main>
 
   <section id="daily-image-section" class="content-section">
-    <h2>Image of the Day</h2>
-    <div id="daily-image-container">
-        <p>Loading today's masterpiece...</p>
-    </div>
-    <div class="social-links">
-        <p>Share this culinary crime on your socials!</p>
-        <!-- Social share links will be populated by JavaScript -->
-        <a href="#" class="social-link" id="share-twitter" target="_blank" title="Share on Twitter">Twitter</a>
-        <a href="#" class="social-link" id="share-facebook" target="_blank" title="Share on Facebook">Facebook</a>
-        <a href="#" class="social-link" id="share-pinterest" target="_blank" title="Share on Pinterest">Pinterest</a>
-    </div>
-  </main>
+    <h3>Image for the day</h3>
+    {% if image_url %}
+      <img src="{{ image_url }}" alt="AI generated image of a food crime" style="width: 100%; max-width: 500px; height: auto; border-radius: 8px; margin-top: 1rem;">
+      <p style="text-align: center;">
+        <a href="{{ url_for('archive') }}" class="button-link">Browse The Archive</a>
+      </p>
+    {% else %}
+      <p>No image available for today. Please check back later or an administrator can trigger a generation.</p>
+    {% endif %}
+  </section>
   <section id="about-section" class="content-section">
     <h2>About Crimes Against Foodies</h2>
     <p>Welcome to Crimes Against Foodies! This is a fun project that helps you discover... well, interesting food combinations. Some might be delicious, some might be culinary crimes. You decide!</p>

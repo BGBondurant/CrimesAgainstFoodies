@@ -1,2 +1,5 @@
 Flask
-APScheduler
+SQLAlchemy
+google-cloud-aiplatform
+google-cloud-storage
+Pillow

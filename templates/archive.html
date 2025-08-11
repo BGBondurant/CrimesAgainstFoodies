@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Archive - Crimes Against Foodies</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='Header.css') }}">
+    <style>
+        body { font-family: sans-serif; background-color: #f0f2f5; color: #333; margin: 0; }
+        .container { max-width: 800px; margin: 2rem auto; padding: 2rem; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #1c1e21; }
+        .navigation { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #ddd; }
+        .nav-link { color: #1877f2; text-decoration: none; font-weight: bold; padding: 0.5rem 1rem; border-radius: 6px; }
+        .nav-link:hover { background-color: #e7f3ff; }
+        .nav-link.disabled { color: #90949c; pointer-events: none; }
+        #date-select { font-size: 1rem; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; }
+        .image-container { text-align: center; }
+        .image-container img { max-width: 100%; height: auto; border-radius: 8px; margin-top: 1rem; }
+        .food-combo-heading { font-size: 1.5rem; margin-top: 0; }
+        .placeholder { margin-top: 2rem; padding: 1rem; background-color: #f7f7f7; border-left: 3px solid #1877f2; }
+        .placeholder h3 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <header id="header-bar">
+        <a href="/" title="Go to Homepage" class="logo-link">
+            <img id="main-logo-image" src="{{ url_for('static', filename='Crimes.png') }}" alt="Crimes Against Foodies Logo">
+        </a>
+        <h1 id="header-title">Crimes Against Foodies - Archive</h1>
+    </header>
+
+    <div class="container">
+        <h1>Image Archive</h1>
+
+        <div class="navigation">
+            <a href="{{ url_for('archive', date_str=prev_date) if prev_date else '#' }}" class="nav-link {{ 'disabled' if not prev_date }}">
+                &larr; Previous Day
+            </a>
+
+            <select id="date-select" onchange="location = this.value;">
+                {% for d in all_dates %}
+                    <option value="{{ url_for('archive', date_str=d) }}" {% if d == current_date %}selected{% endif %}>
+                        {{ d }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <a href="{{ url_for('archive', date_str=next_date) if next_date else '#' }}" class="nav-link {{ 'disabled' if not next_date }}">
+                Next Day &rarr;
+            </a>
+        </div>
+
+        {% if image %}
+            <div class="image-container">
+                <h2 class="food-combo-heading">{{ image.food_combination }}</h2>
+                <img src="{{ image.public_url }}" alt="Image for {{ image.generation_date.isoformat() }}">
+            </div>
+
+            <div class="placeholder">
+                <h3>Description</h3>
+                <p>This is a placeholder for a detailed, AI-generated description of the culinary crime you are witnessing. It might include tasting notes, a fictional backstory, or a humorous review.</p>
+            </div>
+
+            <div class="placeholder">
+                <h3>Ingredients List</h3>
+                <p>A placeholder for the list of ingredients that went into creating this masterpiece. The list would be dynamically generated based on the food combination.</p>
+            </div>
+        {% else %}
+            <p style="text-align: center;">No image found for the selected date. Please select another date from the dropdown.</p>
+        {% endif %}
+    </div>
+
+</body>
+</html>
