@@ -5,21 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Archive - Crimes Against Foodies</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='Header.css') }}">
-    <style>
-        body { font-family: sans-serif; background-color: #f0f2f5; color: #333; margin: 0; }
-        .container { max-width: 800px; margin: 2rem auto; padding: 2rem; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h1, h2 { text-align: center; color: #1c1e21; }
-        .navigation { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #ddd; }
-        .nav-link { color: #1877f2; text-decoration: none; font-weight: bold; padding: 0.5rem 1rem; border-radius: 6px; }
-        .nav-link:hover { background-color: #e7f3ff; }
-        .nav-link.disabled { color: #90949c; pointer-events: none; }
-        #date-select { font-size: 1rem; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; }
-        .image-container { text-align: center; }
-        .image-container img { max-width: 100%; height: auto; border-radius: 8px; margin-top: 1rem; }
-        .food-combo-heading { font-size: 1.5rem; margin-top: 0; }
-        .placeholder { margin-top: 2rem; padding: 1rem; background-color: #f7f7f7; border-left: 3px solid #1877f2; }
-        .placeholder h3 { margin-top: 0; }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='archive.css') }}">
 </head>
 <body>
     <header id="header-bar">
@@ -33,9 +19,11 @@
         <h1>Image Archive</h1>
 
         <div class="navigation">
-            <a href="{{ url_for('archive', date_str=prev_date) if prev_date else '#' }}" class="nav-link {{ 'disabled' if not prev_date }}">
-                &larr; Previous Day
-            </a>
+            {% if prev_date %}
+                <a href="{{ url_for('archive', date_str=prev_date) }}" class="nav-link">&larr; Previous Day</a>
+            {% else %}
+                <span class="nav-link-placeholder"></span>
+            {% endif %}
 
             <select id="date-select" onchange="location = this.value;">
                 {% for d in all_dates %}
@@ -45,9 +33,11 @@
                 {% endfor %}
             </select>
 
-            <a href="{{ url_for('archive', date_str=next_date) if next_date else '#' }}" class="nav-link {{ 'disabled' if not next_date }}">
-                Next Day &rarr;
-            </a>
+            {% if next_date %}
+                <a href="{{ url_for('archive', date_str=next_date) }}" class="nav-link">Next Day &rarr;</a>
+            {% else %}
+                <span class="nav-link-placeholder"></span>
+            {% endif %}
         </div>
 
         {% if image %}
@@ -70,5 +60,8 @@
         {% endif %}
     </div>
 
+    <footer id="footer">
+        <p>&copy; 2023 Crimes Against Foodies. All rights reserved (mostly for laughs).</p>
+    </footer>
 </body>
 </html>

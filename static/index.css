@@ -152,3 +152,22 @@ body {
 .list-action-btn:hover {
     background-color: #9acfea; /* Slightly darker shade for hover */
 }
+
+.button-link {
+    display: inline-block;
+    padding: 10px 20px;
+    margin-top: 1rem;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #000;
+    background-color: lightblue;
+    border: none;
+    border-radius: 6px;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+.button-link:hover {
+    background-color: #9acfea;
+}

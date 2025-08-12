@@ -1,6 +1,7 @@
 import os
 from datetime import date, timedelta, datetime
-from flask import Flask, jsonify, request, render_template, g
+from functools import wraps
+from flask import Flask, jsonify, request, render_template, g, Response
 from sqlalchemy import desc, asc, func
 
 from database import SessionLocal, DailyImage, Preparation, Food, Suggestion
@@ -19,6 +20,21 @@ def teardown_appcontext(exception=None):
     db = g.pop('db', None)
     if db is not None:
         db.close()
+
+# --- Authentication ---
+def auth_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        admin_user = os.environ.get('ADMIN_USERNAME')
+        admin_pass = os.environ.get('ADMIN_PASSWORD')
+        if auth and auth.username == admin_user and auth.password == admin_pass:
+            return f(*args, **kwargs)
+        return Response(
+            'Could not verify your access level for that URL.\n'
+            'You have to login with proper credentials', 401,
+            {'WWW-Authenticate': 'Basic realm="Login Required"'})
+    return decorated
 
 # --- Frontend Routes ---
 @app.route('/')
@@ -70,6 +86,7 @@ def archive(date_str=None):
                            current_date=target_date.isoformat())
 
 @app.route('/admin')
+@auth_required
 def admin():
     return render_template('admin.html')
 
@@ -90,11 +107,13 @@ def get_foods():
     return jsonify([serialize(f) for f in foods])
 
 @app.route('/api/suggestions', methods=['GET'])
+@auth_required
 def get_suggestions():
     suggestions = g.db.query(Suggestion).order_by(desc(Suggestion.id)).all()
     return jsonify([serialize(s) for s in suggestions])
 
 @app.route('/api/suggestions', methods=['POST'])
+@auth_required
 def add_suggestion():
     data = request.get_json()
     if not data or not all(k in data for k in ['item', 'status', 'date', 'type']):
@@ -106,6 +125,7 @@ def add_suggestion():
     return jsonify(serialize(new_suggestion)), 201
 
 @app.route('/api/suggestions/check_duplicates', methods=['POST'])
+@auth_required
 def check_duplicates():
     data = request.get_json()
     suggestion_text = data.get('text', '').lower()
@@ -124,6 +144,7 @@ def check_duplicates():
     return jsonify({'duplicates': duplicates})
 
 @app.route('/api/suggestions/approve', methods=['POST'])
+@auth_required
 def approve_suggestion():
     data = request.get_json()
     suggestion_id = data.get('id')
@@ -151,6 +172,7 @@ def approve_suggestion():
     return jsonify({'message': 'Suggestion approved.'})
 
 @app.route('/api/suggestions/reject', methods=['POST'])
+@auth_required
 def reject_suggestion():
     data = request.get_json()
     suggestion_id = data.get('id')
@@ -165,6 +187,7 @@ def reject_suggestion():
     return jsonify({'error': 'Suggestion not found'}), 404
 
 @app.route('/api/suggestions/update', methods=['POST'])
+@auth_required
 def update_suggestion():
     data = request.get_json()
     suggestion_id = data.get('id')

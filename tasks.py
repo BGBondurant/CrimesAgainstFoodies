@@ -7,6 +7,7 @@ from datetime import date
 import vertexai
 from flask import Blueprint, jsonify, request
 from google.cloud import storage
+from sqlalchemy import func
 from vertexai.preview.vision_models import ImageGenerationModel
 
 from database import SessionLocal, DailyImage, Food, Preparation
@@ -44,100 +45,115 @@ def generate_daily_image_task():
     An endpoint to be triggered by an external scheduler (e.g., Google Cloud Scheduler).
     This task generates a new AI image and saves its metadata.
     """
-    # Initialize Vertex AI within the request context to avoid blocking app startup.
-    # This also makes it more robust in a multi-worker environment.
-    try:
-        vertexai.init(project=GCP_PROJECT_ID, location="us-central1")
-    except Exception as e:
-        # Log the error and return a helpful message.
-        print(f"Failed to initialize Vertex AI: {e}")
-        return jsonify({"error": "Vertex AI initialization failed. Check credentials and project settings."}), 500
+    # --- Security Check ---
+    # This is a simple secret-based authentication for the cron job.
+    # In a real-world scenario, you might use something more robust like OAuth.
+    expected_secret = os.environ.get('CRON_SECRET')
+    provided_secret = request.headers.get('X-Cron-Secret')
+
+    if not expected_secret or provided_secret != expected_secret:
+        return jsonify({"error": "Unauthorized"}), 401
+    # --- End Security Check ---
 
     db = SessionLocal()
     try:
         # --- New 5-Step Prompt Generation ---
 
         # Step 1: Generate the Dish
-        preps = db.query(Preparation).order_by(db.func.random()).limit(2).all()
-        foods = db.query(Food).order_by(db.func.random()).limit(2).all()
+        preps = db.query(Preparation).order_by(func.random()).limit(2).all()
+        foods = db.query(Food).order_by(func.random()).limit(2).all()
 
         if len(preps) < 2 or len(foods) < 2:
             return jsonify({"error": "Not enough data in preparations or foods tables (requires at least 2 of each)."}), 500
 
         dish_title = f"{preps[0].name} {foods[0].name} and {preps[1].name} {foods[1].name}"
-
-        # Step 2: Select a Scene Archetype
-        archetypes = ["Action Scene", "Abstract/Overhead", "Surreal/Impossible"]
-        chosen_archetype = random.choice(archetypes)
-
-        # Step 3: Populate the Scene Details
-        scene_details = {
-            "Action Scene": {
-                "Location": ["a riot clashing with police", "a high-speed car chase on a coastal highway", "a bank heist with money flying everywhere", "a chaotic kitchen during a dinner rush fire", "the deck of a ship in a perfect storm"],
-                "Protagonist Action": ["is held by a stoic riot police officer on a shield", "is precariously balanced on the dashboard, held by a getaway driver", "is being presented by a terrified bank manager", "is being rescued by a chef wearing a firefighter's helmet"],
-                "Background Action": ["a protestor is trying to grab it while vaulting a barricade", "a pursuing helicopter is attempting to snag it with a net", "a fellow bank robber is making a desperate lunge for it", "a burst water pipe is spraying water everywhere around the scene"],
-                "Text Method": ["graffitied on a wall in the background", "spelled out by the trail of smoke from a flare", "formed by scattered documents flying through the air", "written on the cracked screen of a dropped smartphone on the ground"]
-            },
-            "Abstract/Overhead": {
-                "Location": ["a bed of black volcanic sand", "a surface of cracked, parched earth", "a motherboard with glowing circuits", "a luxurious bed of crushed velvet", "an ancient, weathered stone altar"],
-                "Protagonist Action": ["is meticulously arranged in a perfect geometric spiral", "is deconstructed, with its components laid out in a grid", "is presented as a single, perfect portion in the exact center", "is artfully splattered across the surface like a Jackson Pollock painting"],
-                "Background Action": ["subtle wisps of colored smoke curl around the edges", "a single, perfect droplet of liquid is falling towards the dish", "the surface beneath is slowly cracking", "bioluminescent fungi are gently pulsing with light around the dish"],
-                "Text Method": ["etched into the surface as if by ancient tools", "formed by the glowing pathways of the circuit board", "subtly woven into the texture of the velvet", "appears as a watermark, visible only from a certain angle"]
-            },
-            "Surreal/Impossible": {
-                "Location": ["an upside-down forest with glowing flora", "the interior of a giant, mechanical clock", "a library where the shelves are made of flowing waterfalls", "a serene asteroid field with a nebula in the background"],
-                "Protagonist Action": ["is held by a gnome wearing a suit of armor made of leaves", "is being served by a clockwork automaton with too many arms", "is floating just above the hands of a librarian made of water", "is presented on a crystal platter by an ethereal space entity"],
-                "Background Action": ["stars are being born in the distant nebula", "giant clock gears are slowly turning in the background", "books are swimming like fish through the water-shelves", "the roots of the upside-down trees are dripping starlight"],
-                "Text Method": ["spelled out by constellations in the night sky", "formed by the hands of the giant clock", "written in the pages of a floating, open book", "appears as shimmering, magical runes on the crystal platter"]
-            }
-        }
-
-        location = random.choice(scene_details[chosen_archetype]["Location"])
-        protagonist_action = random.choice(scene_details[chosen_archetype]["Protagonist Action"])
-        background_action = random.choice(scene_details[chosen_archetype]["Background Action"])
-        text_method = random.choice(scene_details[chosen_archetype]["Text Method"])
-
-        # Step 4: Select Camera Directives
-        shot_types = ["Extreme Close-Up, focusing on a single textural detail", "Nadir Shot (straight down), creating a flat-lay effect", "Worm's-eye View (looking straight up), making the food tower over the viewer", "Point-of-View (POV) shot, as if the viewer is about to eat it", "Dutch Angle, creating a sense of unease or chaos"]
-        lenses = ["a macro lens", "a fisheye lens", "an 85mm cinematic lens", "an anamorphic lens with lens flare"]
-        lighting_styles = ["harsh, direct sunlight creating hard shadows", "soft, diffused light as if on an overcast day", "dramatic, low-key noir lighting with a single light source", "eerie, colorful bioluminescent light from the environment", "warm, romantic light as if from a flickering fireplace"]
-
-        shot_type = random.choice(shot_types)
-        lens = random.choice(lenses)
-        lighting_style = random.choice(lighting_styles)
-
-        # Step 5: Assemble and Output the Final Prompt
-        prompt = (
-            f"{shot_type} of a gourmet dish of {dish_title}. The shot is captured on {lens}. "
-            f"The setting is {location}. The dish {protagonist_action}. In the background, {background_action}. "
-            f"The text '{dish_title}' is creatively integrated by being {text_method}. "
-            f"The scene is lit with {lighting_style}, creating a dramatic and interesting image."
-        )
-
-        # 3. Generate Image with Vertex AI (no change to this part)
-        model = ImageGenerationModel.from_pretrained("imagegeneration@006")
-        response = model.generate_images(
-            prompt=prompt,
-            number_of_images=1,
-            aspect_ratio="1:1"
-        )
-
-        if not response or not response.images:
-            return jsonify({"error": "Failed to generate image from Vertex AI."}), 500
-
-        base64_image_data = response.images[0]._base64_string
-
-        # 4. Process Image Data In-Memory
-        image_bytes = base64.b64decode(base64_image_data)
-        image_stream = io.BytesIO(image_bytes)
-
-        # 5. Upload to Google Cloud Storage (GCS)
         today = date.today()
-        filename = f"crime-{today.strftime('%Y-%m-%d')}.png"
-        public_url = upload_to_gcs(image_stream, filename)
+        public_url = ""
 
-        if not public_url:
-            return jsonify({"error": "Failed to upload image to GCS."}), 500
+        # --- AI & GCS Logic ---
+        # Check for mock environment variable. If true, skip actual AI calls.
+        if os.environ.get("MOCK_AI_SERVICES", "false").lower() == "true":
+            print("MOCK_AI_SERVICES is true. Skipping actual image generation and GCS upload.")
+            public_url = f"https://via.placeholder.com/500.png?text={dish_title.replace(' ', '+')}"
+        else:
+            # Initialize Vertex AI within the request context to avoid blocking app startup.
+            try:
+                vertexai.init(project=GCP_PROJECT_ID, location="us-central1")
+            except Exception as e:
+                print(f"Failed to initialize Vertex AI: {e}")
+                return jsonify({"error": "Vertex AI initialization failed. Check credentials and project settings."}), 500
+
+            # Step 2: Select a Scene Archetype
+            archetypes = ["Action Scene", "Abstract/Overhead", "Surreal/Impossible"]
+            chosen_archetype = random.choice(archetypes)
+
+            # Step 3: Populate the Scene Details
+            scene_details = {
+                "Action Scene": {
+                    "Location": ["a riot clashing with police", "a high-speed car chase on a coastal highway", "a bank heist with money flying everywhere", "a chaotic kitchen during a dinner rush fire", "the deck of a ship in a perfect storm"],
+                    "Protagonist Action": ["is held by a stoic riot police officer on a shield", "is precariously balanced on the dashboard, held by a getaway driver", "is being presented by a terrified bank manager", "is being rescued by a chef wearing a firefighter's helmet"],
+                    "Background Action": ["a protestor is trying to grab it while vaulting a barricade", "a pursuing helicopter is attempting to snag it with a net", "a fellow bank robber is making a desperate lunge for it", "a burst water pipe is spraying water everywhere around the scene"],
+                    "Text Method": ["graffitied on a wall in the background", "spelled out by the trail of smoke from a flare", "formed by scattered documents flying through the air", "written on the cracked screen of a dropped smartphone on the ground"]
+                },
+                "Abstract/Overhead": {
+                    "Location": ["a bed of black volcanic sand", "a surface of cracked, parched earth", "a motherboard with glowing circuits", "a luxurious bed of crushed velvet", "an ancient, weathered stone altar"],
+                    "Protagonist Action": ["is meticulously arranged in a perfect geometric spiral", "is deconstructed, with its components laid out in a grid", "is presented as a single, perfect portion in the exact center", "is artfully splattered across the surface like a Jackson Pollock painting"],
+                    "Background Action": ["subtle wisps of colored smoke curl around the edges", "a single, perfect droplet of liquid is falling towards the dish", "the surface beneath is slowly cracking", "bioluminescent fungi are gently pulsing with light around the dish"],
+                    "Text Method": ["etched into the surface as if by ancient tools", "formed by the glowing pathways of the circuit board", "subtly woven into the texture of the velvet", "appears as a watermark, visible only from a certain angle"]
+                },
+                "Surreal/Impossible": {
+                    "Location": ["an upside-down forest with glowing flora", "the interior of a giant, mechanical clock", "a library where the shelves are made of flowing waterfalls", "a serene asteroid field with a nebula in the background"],
+                    "Protagonist Action": ["is held by a gnome wearing a suit of armor made of leaves", "is being served by a clockwork automaton with too many arms", "is floating just above the hands of a librarian made of water", "is presented on a crystal platter by an ethereal space entity"],
+                    "Background Action": ["stars are being born in the distant nebula", "giant clock gears are slowly turning in the background", "books are swimming like fish through the water-shelves", "the roots of the upside-down trees are dripping starlight"],
+                    "Text Method": ["spelled out by constellations in the night sky", "formed by the hands of the giant clock", "written in the pages of a floating, open book", "appears as shimmering, magical runes on the crystal platter"]
+                }
+            }
+
+            location = random.choice(scene_details[chosen_archetype]["Location"])
+            protagonist_action = random.choice(scene_details[chosen_archetype]["Protagonist Action"])
+            background_action = random.choice(scene_details[chosen_archetype]["Background Action"])
+            text_method = random.choice(scene_details[chosen_archetype]["Text Method"])
+
+            # Step 4: Select Camera Directives
+            shot_types = ["Extreme Close-Up, focusing on a single textural detail", "Nadir Shot (straight down), creating a flat-lay effect", "Worm's-eye View (looking straight up), making the food tower over the viewer", "Point-of-View (POV) shot, as if the viewer is about to eat it", "Dutch Angle, creating a sense of unease or chaos"]
+            lenses = ["a macro lens", "a fisheye lens", "an 85mm cinematic lens", "an anamorphic lens with lens flare"]
+            lighting_styles = ["harsh, direct sunlight creating hard shadows", "soft, diffused light as if on an overcast day", "dramatic, low-key noir lighting with a single light source", "eerie, colorful bioluminescent light from the environment", "warm, romantic light as if from a flickering fireplace"]
+
+            shot_type = random.choice(shot_types)
+            lens = random.choice(lenses)
+            lighting_style = random.choice(lighting_styles)
+
+            # Step 5: Assemble and Output the Final Prompt
+            prompt = (
+                f"{shot_type} of a gourmet dish of {dish_title}. The shot is captured on {lens}. "
+                f"The setting is {location}. The dish {protagonist_action}. In the background, {background_action}. "
+                f"The text '{dish_title}' is creatively integrated by being {text_method}. "
+                f"The scene is lit with {lighting_style}, creating a dramatic and interesting image."
+            )
+
+            # 3. Generate Image with Vertex AI
+            model = ImageGenerationModel.from_pretrained("imagegeneration@006")
+            response = model.generate_images(
+                prompt=prompt,
+                number_of_images=1,
+                aspect_ratio="1:1"
+            )
+
+            if not response or not response.images:
+                return jsonify({"error": "Failed to generate image from Vertex AI."}), 500
+
+            base64_image_data = response.images[0]._base64_string
+
+            # 4. Process Image Data In-Memory
+            image_bytes = base64.b64decode(base64_image_data)
+            image_stream = io.BytesIO(image_bytes)
+
+            # 5. Upload to Google Cloud Storage (GCS)
+            filename = f"crime-{today.strftime('%Y-%m-%d')}.png"
+            public_url = upload_to_gcs(image_stream, filename)
+
+            if not public_url:
+                return jsonify({"error": "Failed to upload image to GCS."}), 500
 
         # 6. Save Metadata to Database
         new_daily_image = DailyImage(
