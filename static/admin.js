@@ -1,20 +1,12 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const loginSection = document.getElementById('login-section');
     const suggestionsSection = document.getElementById('suggestions-section');
-    const loginButton = document.getElementById('github-login-btn');
     const suggestionsListDiv = document.getElementById('suggestions-list');
     const newSuggestionItemNameInput = document.getElementById('new-suggestion-item-name');
     const newSuggestionTypeSelect = document.getElementById('new-suggestion-type-select');
     const addNewSuggestionButton = document.getElementById('add-new-suggestion-btn');
 
-    if (loginButton) {
-        loginButton.addEventListener('click', function() {
-            console.log("Simulated GitHub login initiated.");
-            if (loginSection) loginSection.classList.add('hidden');
-            if (suggestionsSection) suggestionsSection.classList.remove('hidden');
-            loadSuggestions();
-        });
-    }
+    // Since the page is now protected by Basic Auth, we can load suggestions immediately.
+    loadSuggestions();
 
     if (addNewSuggestionButton && newSuggestionItemNameInput && newSuggestionTypeSelect) {
         addNewSuggestionButton.addEventListener('click', function() {
